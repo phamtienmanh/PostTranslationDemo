@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using WebApplication1.DataAccess.Entities;
 
-namespace WebApplication1.Contexts
+namespace WebApplication1.DataAccess.Contexts
 {
     public sealed class AppDbContext: DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            Database.EnsureCreated();
+            //Database.EnsureCreated();
         }
         public DbSet<Post> Posts { get; set; }
         public DbSet<PostTranslation> PostTranslations { get; set; }

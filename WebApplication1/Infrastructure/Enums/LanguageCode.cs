@@ -1,5 +1,4 @@
-﻿
-namespace WebApplication1.Enums
+﻿namespace WebApplication1.Infrastructure.Enums
 {
     public enum LanguageCode
     {

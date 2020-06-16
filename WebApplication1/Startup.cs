@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using WebApplication1.Contexts;
-using WebApplication1.Repositories;
-using WebApplication1.Repostories;
+using WebApplication1.DataAccess.Contexts;
+using WebApplication1.DataAccess.Repositories;
+using WebApplication1.Infrastructure;
 
 namespace WebApplication1
 {

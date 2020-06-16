@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using WebApplication1.Contexts;
+using WebApplication1.DataAccess.Contexts;
 
 namespace WebApplication1
 {
@@ -17,12 +11,11 @@ namespace WebApplication1
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
-//            using (var scope = host.Services.CreateScope())
-//            {
-//                var context = scope.ServiceProvider.GetService<AppDbContext>();
-//                context.Database.EnsureCreated();
-//                context.Database.Migrate();
-//            }
+            using (var scope = host.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetService<AppDbContext>();
+                context.Database.EnsureCreated();
+            }
             host.Run();
         }
 

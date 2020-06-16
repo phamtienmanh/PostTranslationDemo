@@ -2,18 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
 
-namespace WebApplication1
+namespace WebApplication1.DataAccess.Entities
 {
     public class Post
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; set; }
-        public bool Published { get; set; } = true;
-        public DateTime? CreatedDate { get; set; } = DateTime.Now;
+        public bool Published { get; set; }
+        public DateTime? CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
         public ICollection<PostTranslation> PostTranslations { get; set; } = new List<PostTranslation>();

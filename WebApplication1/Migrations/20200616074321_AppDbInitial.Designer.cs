@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using WebApplication1.Contexts;
+using WebApplication1.DataAccess.Contexts;
 
 namespace WebApplication1.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20200615103717_AppDbInitialMigration")]
-    partial class AppDbInitialMigration
+    [Migration("20200616074321_AppDbInitial")]
+    partial class AppDbInitial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -21,7 +21,7 @@ namespace WebApplication1.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
-            modelBuilder.Entity("WebApplication1.Post", b =>
+            modelBuilder.Entity("WebApplication1.DataAccess.Entities.Post", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -42,7 +42,7 @@ namespace WebApplication1.Migrations
                     b.ToTable("Posts");
                 });
 
-            modelBuilder.Entity("WebApplication1.PostMeta", b =>
+            modelBuilder.Entity("WebApplication1.DataAccess.Entities.PostMeta", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -71,7 +71,7 @@ namespace WebApplication1.Migrations
                     b.ToTable("PostMetas");
                 });
 
-            modelBuilder.Entity("WebApplication1.PostTranslation", b =>
+            modelBuilder.Entity("WebApplication1.DataAccess.Entities.PostTranslation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -100,18 +100,18 @@ namespace WebApplication1.Migrations
                     b.ToTable("PostTranslations");
                 });
 
-            modelBuilder.Entity("WebApplication1.PostMeta", b =>
+            modelBuilder.Entity("WebApplication1.DataAccess.Entities.PostMeta", b =>
                 {
-                    b.HasOne("WebApplication1.Post", "Post")
+                    b.HasOne("WebApplication1.DataAccess.Entities.Post", "Post")
                         .WithMany("PostMetas")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("WebApplication1.PostTranslation", b =>
+            modelBuilder.Entity("WebApplication1.DataAccess.Entities.PostTranslation", b =>
                 {
-                    b.HasOne("WebApplication1.Post", "Post")
+                    b.HasOne("WebApplication1.DataAccess.Entities.Post", "Post")
                         .WithMany("PostTranslations")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
