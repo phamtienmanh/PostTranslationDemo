@@ -6,8 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebApplication1.DataAccess.Contexts;
-using WebApplication1.DataAccess.Repositories;
 using WebApplication1.Infrastructure;
+using WebApplication1.Infrastructure.Services;
 
 namespace WebApplication1
 {
@@ -37,7 +37,6 @@ namespace WebApplication1
 
             IMapper mapper = mappingConfig.CreateMapper();
             services.AddSingleton(mapper);
-            services.AddScoped<IAppDbRepository, AppDbRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -1,9 +1,9 @@
 ﻿namespace WebApplication1.Infrastructure.Enums
 {
-    public enum LanguageCode
+    public static class LanguageCode
     {
-        en,
-        vi,
-        fr
+        public const string English = "en";
+        public const string VietNam = "vi";
+        public const string France = "fr";
     }
 }

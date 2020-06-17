@@ -14,8 +14,20 @@ namespace WebApplication1.Infrastructure
                 .ForMember(dest => dest.UpdatedDate, opt => opt.MapFrom(src => src.Post.UpdatedDate))
                 .ReverseMap()
                 .ForMember(x => x.Id, opt => opt.Ignore())
-                .ForMember(x => x.PostId, opt => opt.Ignore());
-            CreateMap<PostModel, Post>().ForMember(x => x.Id, opt => opt.Ignore()); ;
+                .AfterMap((src, dest) => dest.Post.Published = src.Published);
+            CreateMap<PostModel, Post>()
+                .ForMember(x => x.Id, opt => opt.Ignore())
+                .ForMember(x => x.CreatedDate, opt => opt.Ignore())
+                .ForMember(x => x.UpdatedDate, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    dest.PostTranslations.Add(new PostTranslation()
+                    {
+                        LanguageCode = src.LanguageCode,
+                        Title = src.Title,
+                        Description = src.Description
+                    });
+                });
         }
     }
 }

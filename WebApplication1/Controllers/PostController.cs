@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using AutoMapper;
-using Microsoft.AspNetCore.JsonPatch;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication1.DataAccess.Entities;
-using WebApplication1.DataAccess.Repositories;
+using WebApplication1.DataAccess.Contexts;
+using WebApplication1.Infrastructure.Enums;
 using WebApplication1.Infrastructure.Models;
+using WebApplication1.Infrastructure.Services;
 
 namespace WebApplication1.Controllers
 {
@@ -13,93 +11,71 @@ namespace WebApplication1.Controllers
     [Route("[controller]")]
     public class PostController : ControllerBase
     {
-        private readonly IAppDbRepository _appRepo;
-        private readonly IMapper _mapper;
+        private readonly PostServices _postServices;
 
-        public PostController(IAppDbRepository appRepo, IMapper mapper)
+        public PostController(AppDbContext dbContext, IMapper mapper)
         {
-            _appRepo = appRepo;
-            _mapper = mapper;
+            _postServices = new PostServices(dbContext, mapper);
         }
 
-        [HttpGet("{id}", Name = "GetPostById")]
-        public IActionResult GetPostById(long id)
+        [HttpGet("{id}", Name = "GetById")]
+        public IActionResult Get(long id, string languageCode = LanguageCode.English)
         {
-            var post = _appRepo.GetPostById(id);
-            if (post is null)
+            var postModel = _postServices.GetPostModelById(id, languageCode);
+            if (postModel == null)
             {
                 return NotFound();
             }
-            return Ok(_mapper.Map<PostModel>(post));
+            return Ok(postModel);
         }
 
         [HttpGet]
-        public IActionResult GetPosts()
+        public IActionResult Get(string languageCode = LanguageCode.English)
         {
-            var posts = _appRepo.GetPosts();
-            return Ok(_mapper.Map<List<PostModel>>(posts));
+            var posts = _postServices.GetPosts(languageCode);
+            return Ok(posts);
         }
 
         [HttpPost]
-        public IActionResult CreatePost([FromBody] PostModel postModel)
+        public IActionResult Create([FromBody] PostModel postModel)
         {
-            var newPost = _mapper.Map<Post>(postModel);
-            var newPostTrans = _mapper.Map<PostTranslation>(postModel);
-            newPost.PostTranslations.Add(newPostTrans);
-            _appRepo.CreatePost(newPost);
-            _appRepo.Save();
-            var createdPost = _mapper.Map<PostModel>(newPostTrans);
-            return CreatedAtRoute("GetPostById",
-                new { id = createdPost.Id },
-                createdPost);
+            var createdPostModel = _postServices.CreatePost(postModel);
+            if (createdPostModel == null)
+            {
+                return NotFound();
+            }
+            return CreatedAtRoute("GetById",
+                new { id = createdPostModel.PostId, languageCode = createdPostModel.LanguageCode },
+                createdPostModel);
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdatePost(long id, [FromBody] PostModel postModel)
+        public IActionResult Update(long id, [FromBody] PostModel postModel, [FromQuery] string languageCode = LanguageCode.English)
         {
-            var updatePost = _appRepo.GetPostById(id);
-            if (updatePost is null)
+            if (!_postServices.UpdatePost(id, languageCode, postModel))
             {
                 return NotFound();
             }
-            postModel.CreatedDate = updatePost.Post.CreatedDate;
-            postModel.UpdatedDate = DateTime.Now;
-            _mapper.Map(postModel, updatePost);
-            _mapper.Map(postModel, updatePost.Post);
-            _appRepo.Save();
-            return NoContent();
-        }
-
-        [HttpPatch("{id}")]
-        public IActionResult PatchUpdatePost(long id, [FromBody] JsonPatchDocument<PostModel> postModel)
-        {
-            var updatePost = _appRepo.GetPostById(id);
-            if (updatePost is null)
-            {
-                return NotFound();
-            }
-
-            var patchUpdatePost = _mapper.Map<PostModel>(updatePost);
-            postModel.ApplyTo(patchUpdatePost, ModelState);
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            _mapper.Map(patchUpdatePost, updatePost);
-            _mapper.Map(patchUpdatePost, updatePost.Post);
-            _appRepo.Save();
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeletePostTranslationById(long id)
+        public IActionResult Delete(long id)
         {
-            var deletePost = _appRepo.GetPostById(id);
-            if (deletePost is null)
+            if (!_postServices.DeletePost(id))
             {
                 return NotFound();
             }
+            return NoContent();
+        }
 
-            _appRepo.DeletePost(deletePost.Post);
-            _appRepo.Save();
+        [HttpDelete]
+        public IActionResult DeleteTranslation([FromQuery] long translationId)
+        {
+            if (!_postServices.DeleteTranslate(translationId))
+            {
+                return NotFound();
+            }
             return NoContent();
         }
     }
