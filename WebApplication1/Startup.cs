@@ -37,6 +37,8 @@ namespace WebApplication1
 
             IMapper mapper = mappingConfig.CreateMapper();
             services.AddSingleton(mapper);
+
+            services.AddScoped<PostServices>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

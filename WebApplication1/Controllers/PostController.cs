@@ -1,6 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Mvc;
-using WebApplication1.DataAccess.Contexts;
+﻿using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Infrastructure.Enums;
 using WebApplication1.Infrastructure.Models;
 using WebApplication1.Infrastructure.Services;
@@ -13,9 +11,9 @@ namespace WebApplication1.Controllers
     {
         private readonly PostServices _postServices;
 
-        public PostController(AppDbContext dbContext, IMapper mapper)
+        public PostController(PostServices postServices)
         {
-            _postServices = new PostServices(dbContext, mapper);
+            _postServices = postServices;
         }
 
         [HttpGet("{id}", Name = "GetById")]
@@ -26,6 +24,7 @@ namespace WebApplication1.Controllers
             {
                 return NotFound();
             }
+
             return Ok(postModel);
         }
 
@@ -44,15 +43,33 @@ namespace WebApplication1.Controllers
             {
                 return NotFound();
             }
+
             return CreatedAtRoute("GetById",
-                new { id = createdPostModel.PostId, languageCode = createdPostModel.LanguageCode },
+                new {id = createdPostModel.Id, languageCode = createdPostModel.LanguageCode},
+                createdPostModel);
+        }
+
+        [HttpPost("{id}/translation")]
+        public IActionResult CreateTranslation(long id, [FromBody] PostModel postModel)
+        {
+            var message = "";
+            var createdPostModel = _postServices.CreateTranslation(id, postModel, ref message);
+            if (createdPostModel == null)
+            {
+                if (string.IsNullOrEmpty(message))
+                    return NotFound();
+                ModelState.AddModelError("error", message);
+                return BadRequest(ModelState);
+            }
+            return CreatedAtRoute("GetById",
+                new { id = createdPostModel.Id, languageCode = createdPostModel.LanguageCode },
                 createdPostModel);
         }
 
         [HttpPut("{id}")]
-        public IActionResult Update(long id, [FromBody] PostModel postModel, [FromQuery] string languageCode = LanguageCode.English)
+        public IActionResult Update(long id, [FromBody] PostModel postModel)
         {
-            if (!_postServices.UpdatePost(id, languageCode, postModel))
+            if (!_postServices.UpdatePost(id, postModel))
             {
                 return NotFound();
             }
@@ -69,10 +86,10 @@ namespace WebApplication1.Controllers
             return NoContent();
         }
 
-        [HttpDelete]
-        public IActionResult DeleteTranslation([FromQuery] long translationId)
+        [HttpDelete("{id}/translation")]
+        public IActionResult DeleteTranslation(long id, string languageCode = LanguageCode.English)
         {
-            if (!_postServices.DeleteTranslate(translationId))
+            if (!_postServices.DeleteTranslate(id, languageCode))
             {
                 return NotFound();
             }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.DataAccess.Contexts;
@@ -28,12 +29,18 @@ namespace WebApplication1.Infrastructure.Services
         private PostTranslation GetTranslationById(long id, string languageCode)
         {
             return _dbContext.PostTranslations.Include(x => x.Post)
+                .FirstOrDefault(x => x.PostId == id && x.LanguageCode == languageCode);
+        }
+
+        private PostTranslation GetPublishedTranslationById(long id, string languageCode)
+        {
+            return _dbContext.PostTranslations.Include(x => x.Post)
                 .FirstOrDefault(x => x.Post.Published && x.PostId == id && x.LanguageCode == languageCode);
         }
 
         public PostModel GetPostModelById(long id, string languageCode)
         {
-            var postModel = _mapper.Map<PostModel>(GetTranslationById(id, languageCode));
+            var postModel = _mapper.Map<PostModel>(GetPublishedTranslationById(id, languageCode));
             return postModel;
         }
 
@@ -46,29 +53,33 @@ namespace WebApplication1.Infrastructure.Services
 
         public PostModel CreatePost(PostModel postModel)
         {
-            PostTranslation createdTrans;
-            if (postModel.PostId == null)
+            var newPost = _mapper.Map<Post>(postModel);
+            newPost.CreatedDate = DateTime.Now;
+            _dbContext.Posts.Add(newPost);
+            Save();
+            return _mapper.Map<PostModel>(newPost.PostTranslations.FirstOrDefault());
+        }
+
+        public PostModel CreateTranslation(long id, PostModel postModel, ref string message)
+        {
+            var post = _dbContext.Posts.FirstOrDefault(x => x.Id == id);
+            if (post == null) return null;
+            var trans = GetTranslationById(id, postModel.LanguageCode);
+            if (trans != null)
             {
-                var newPost = _mapper.Map<Post>(postModel);
-                newPost.CreatedDate = DateTime.Now;
-                _dbContext.Posts.Add(newPost);
-                createdTrans = newPost.PostTranslations.FirstOrDefault();
+                message = $"Translation for {postModel.LanguageCode} is already exist!";
+                return null;
             }
-            else
-            {
-                var post = _dbContext.Posts.FirstOrDefault(x => x.Id == postModel.PostId);
-                if (post == null) return null;
-                createdTrans = _mapper.Map<PostTranslation>(postModel);
-                post.PostTranslations.Add(createdTrans);
-            }
-            
+            var createdTrans = _mapper.Map<PostTranslation>(postModel);
+            post.PostTranslations.Add(createdTrans);
+
             Save();
             return _mapper.Map<PostModel>(createdTrans); ;
         }
 
-        public bool UpdatePost(long id, string languageCode, PostModel postModel)
+        public bool UpdatePost(long id, PostModel postModel)
         {
-            var updatePost = GetTranslationById(id, languageCode);
+            var updatePost = GetTranslationById(id, postModel.LanguageCode);
             if (updatePost is null)
             {
                 return false;
@@ -89,21 +100,19 @@ namespace WebApplication1.Infrastructure.Services
             return Save();
         }
 
-        public bool DeleteTranslate(long id)
+        public bool DeleteTranslate(long id, string languageCode)
         {
-            var trans = _dbContext.PostTranslations.FirstOrDefault(x => x.Id == id);
+            var trans = GetTranslationById(id, languageCode);
             if (trans == null)
             {
                 return false;
             }
-            var post = _dbContext.Posts.Include(x => x.PostTranslations).FirstOrDefault(x => x.Id == trans.PostId);
-            if (post?.PostTranslations.Count > 1)
+            _dbContext.PostTranslations.Remove(trans);
+            Save();
+            var post = _dbContext.Posts.Include(x => x.PostTranslations).FirstOrDefault(x => x.Id == id);
+            if (post?.PostTranslations.Count == 0)
             {
-                _dbContext.PostTranslations.Remove(trans);
-            }
-            else
-            {
-                _dbContext.Posts.Remove(trans.Post);
+                _dbContext.Posts.Remove(post);
             }
             return Save();
         }
