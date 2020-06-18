@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Linq;
+using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Infrastructure.Enums;
 using WebApplication1.Infrastructure.Models;
 using WebApplication1.Infrastructure.Services;
@@ -9,9 +10,9 @@ namespace WebApplication1.Controllers
     [Route("[controller]")]
     public class PostController : ControllerBase
     {
-        private readonly PostServices _postServices;
+        private readonly IPostServices _postServices;
 
-        public PostController(PostServices postServices)
+        public PostController(IPostServices postServices)
         {
             _postServices = postServices;
         }
@@ -39,10 +40,6 @@ namespace WebApplication1.Controllers
         public IActionResult Create([FromBody] PostModel postModel)
         {
             var createdPostModel = _postServices.CreatePost(postModel);
-            if (createdPostModel == null)
-            {
-                return NotFound();
-            }
 
             return CreatedAtRoute("GetById",
                 new {id = createdPostModel.Id, languageCode = createdPostModel.LanguageCode},
@@ -52,17 +49,21 @@ namespace WebApplication1.Controllers
         [HttpPost("{id}/translation")]
         public IActionResult CreateTranslation(long id, [FromBody] PostModel postModel)
         {
-            var message = "";
-            var createdPostModel = _postServices.CreateTranslation(id, postModel, ref message);
-            if (createdPostModel == null)
+            var languageCode = postModel.LanguageCode;
+            var post = _postServices.GetPostById(id, true);
+            if (post == null)
             {
-                if (string.IsNullOrEmpty(message))
-                    return NotFound();
-                ModelState.AddModelError("error", message);
+                ModelState.AddModelError("error", "Post is not exist!");
                 return BadRequest(ModelState);
             }
+            if (post.PostTranslations.Any(x => x.LanguageCode == languageCode))
+            {
+                ModelState.AddModelError("error", $"Translation for {languageCode} is already exist!");
+                return BadRequest(ModelState);
+            }
+            var createdPostModel = _postServices.CreateTranslation(post, postModel);
             return CreatedAtRoute("GetById",
-                new { id = createdPostModel.Id, languageCode = createdPostModel.LanguageCode },
+                new { id, languageCode },
                 createdPostModel);
         }
 

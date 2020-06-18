@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.DataAccess.Contexts;
@@ -10,7 +9,7 @@ using WebApplication1.Infrastructure.Models;
 
 namespace WebApplication1.Infrastructure.Services
 {
-    public class PostServices
+    public class PostServices: IPostServices
     {
         private readonly AppDbContext _dbContext;
         private readonly IMapper _mapper;
@@ -38,6 +37,13 @@ namespace WebApplication1.Infrastructure.Services
                 .FirstOrDefault(x => x.Post.Published && x.PostId == id && x.LanguageCode == languageCode);
         }
 
+        public Post GetPostById(long id, bool isIncludeTrans = false)
+        {
+            if (isIncludeTrans) return _dbContext.Posts.Include(x => x.PostTranslations)
+                .FirstOrDefault(x => x.Id == id);
+            return _dbContext.Posts.FirstOrDefault(x => x.Id == id);
+        }
+
         public PostModel GetPostModelById(long id, string languageCode)
         {
             var postModel = _mapper.Map<PostModel>(GetPublishedTranslationById(id, languageCode));
@@ -60,21 +66,12 @@ namespace WebApplication1.Infrastructure.Services
             return _mapper.Map<PostModel>(newPost.PostTranslations.FirstOrDefault());
         }
 
-        public PostModel CreateTranslation(long id, PostModel postModel, ref string message)
+        public PostModel CreateTranslation(Post post, PostModel postModel)
         {
-            var post = _dbContext.Posts.FirstOrDefault(x => x.Id == id);
-            if (post == null) return null;
-            var trans = GetTranslationById(id, postModel.LanguageCode);
-            if (trans != null)
-            {
-                message = $"Translation for {postModel.LanguageCode} is already exist!";
-                return null;
-            }
             var createdTrans = _mapper.Map<PostTranslation>(postModel);
             post.PostTranslations.Add(createdTrans);
-
             Save();
-            return _mapper.Map<PostModel>(createdTrans); ;
+            return _mapper.Map<PostModel>(createdTrans);
         }
 
         public bool UpdatePost(long id, PostModel postModel)
@@ -91,7 +88,7 @@ namespace WebApplication1.Infrastructure.Services
 
         public bool DeletePost(long id)
         {
-            var post = _dbContext.Posts.FirstOrDefault(x => x.Id == id);
+            var post = GetPostById(id);
             if (post == null)
             {
                 return false;
@@ -102,17 +99,19 @@ namespace WebApplication1.Infrastructure.Services
 
         public bool DeleteTranslate(long id, string languageCode)
         {
-            var trans = GetTranslationById(id, languageCode);
-            if (trans == null)
+            var post = GetPostById(id, true);
+            if (post == null || post.PostTranslations.All(x => x.LanguageCode != languageCode))
             {
                 return false;
             }
-            _dbContext.PostTranslations.Remove(trans);
-            Save();
-            var post = _dbContext.Posts.Include(x => x.PostTranslations).FirstOrDefault(x => x.Id == id);
-            if (post?.PostTranslations.Count == 0)
+            if (post.PostTranslations.Count <= 1)
             {
                 _dbContext.Posts.Remove(post);
+            }
+            else
+            {
+                var trans = post.PostTranslations.FirstOrDefault(x => x.LanguageCode == languageCode);
+                post.PostTranslations.Remove(trans);
             }
             return Save();
         }
