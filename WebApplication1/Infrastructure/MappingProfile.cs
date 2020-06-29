@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Identity;
 using WebApplication1.DataAccess.Entities;
 using WebApplication1.Infrastructure.Models;
 
@@ -27,6 +28,7 @@ namespace WebApplication1.Infrastructure
                         Description = src.Description
                     });
                 });
+            CreateMap<RegistrationModel, IdentityUser>();
         }
     }
 }

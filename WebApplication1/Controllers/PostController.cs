@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Infrastructure.Enums;
 using WebApplication1.Infrastructure.Models;
@@ -6,6 +7,7 @@ using WebApplication1.Infrastructure.Services;
 
 namespace WebApplication1.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("[controller]")]
     public class PostController : ControllerBase
