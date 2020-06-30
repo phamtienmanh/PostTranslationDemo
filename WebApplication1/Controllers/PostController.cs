@@ -1,5 +1,8 @@
 ﻿using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Infrastructure.Enums;
 using WebApplication1.Infrastructure.Models;
@@ -13,10 +16,12 @@ namespace WebApplication1.Controllers
     public class PostController : ControllerBase
     {
         private readonly IPostServices _postServices;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public PostController(IPostServices postServices)
+        public PostController(IPostServices postServices, UserManager<IdentityUser> userManager)
         {
             _postServices = postServices;
+            _userManager = userManager;
         }
 
         [HttpGet("{id}", Name = "GetById")]
@@ -32,8 +37,9 @@ namespace WebApplication1.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get(string languageCode = LanguageCode.English)
+        public async Task<IActionResult> Get(string languageCode = LanguageCode.English)
         {
+            var user = await _userManager.GetUserAsync(User);
             var posts = _postServices.GetPosts(languageCode);
             return Ok(posts);
         }

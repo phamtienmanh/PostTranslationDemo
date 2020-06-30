@@ -24,18 +24,65 @@ namespace WebApplication1.Controllers
         private readonly AppDbContext _dbContext;
         private readonly IMapper _mapper;
         private readonly UserManager<IdentityUser> _userManager;
-        public AuthController(IConfiguration configuration, AppDbContext dbContext, IMapper mapper, UserManager<IdentityUser> userManager)
+        private SignInManager<IdentityUser> _signInManager;
+
+        public AuthController(IConfiguration configuration,
+            AppDbContext dbContext,
+            IMapper mapper,
+            UserManager<IdentityUser> userManager,
+            SignInManager<IdentityUser> signInManager)
         {
             _configuration = configuration;
             _dbContext = dbContext;
             _mapper = mapper;
             _userManager = userManager;
+            _signInManager = signInManager;
         }
 
         [HttpGet("google-login")]
-        public async Task LoginGoogle()
+        public IActionResult LoginGoogle()
         {
-            await HttpContext.ChallengeAsync("Google", new AuthenticationProperties() { RedirectUri = "/" });
+            string redirectUrl = Url.Action("GoogleResponse", "Auth");
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties("Google", redirectUrl);
+            return new ChallengeResult("Google", properties);
+        }
+
+        public async Task<IActionResult> GoogleResponse()
+        {
+            ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+                return Unauthorized();
+
+            IdentityUser user;
+            var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, false);
+            
+            if (result.Succeeded)
+            {
+                var userEmail = info.Principal.FindFirst(ClaimTypes.Email).Value;
+                user = await _userManager.FindByEmailAsync(userEmail);
+                var claimsIdentity = await GetClaimsIdentityByUser(user);
+                var jwt = GetJwtToken(claimsIdentity);
+                return Ok(jwt);
+            }
+
+            user = new IdentityUser
+            {
+                Email = info.Principal.FindFirst(ClaimTypes.Email).Value,
+                UserName = info.Principal.FindFirst(ClaimTypes.Email).Value
+            };
+
+            IdentityResult identResult = await _userManager.CreateAsync(user);
+            if (identResult.Succeeded)
+            {
+                identResult = await _userManager.AddLoginAsync(user, info);
+                if (identResult.Succeeded)
+                {
+                    var claimsIdentity = await GetClaimsIdentityByUser(user);
+                    var jwt = GetJwtToken(claimsIdentity);
+                    return Ok(jwt);
+                }
+            }
+            return Unauthorized();
         }
 
         [HttpPost("registration")]
@@ -102,11 +149,18 @@ namespace WebApplication1.Controllers
             // check the credentials
             if (await _userManager.CheckPasswordAsync(userToVerify, password))
             {
-                var claims = await _userManager.GetClaimsAsync(userToVerify);
-                return await Task.FromResult(new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme));
+                return await GetClaimsIdentityByUser(userToVerify);
             }
             // Credentials are invalid, or account doesn't exist
             return await Task.FromResult<ClaimsIdentity>(null);
+        }
+
+        private async Task<ClaimsIdentity> GetClaimsIdentityByUser(IdentityUser user)
+        {
+            var claims = await _userManager.GetClaimsAsync(user);
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+            claims.Add(new Claim(ClaimTypes.Name, user.UserName));
+            return await Task.FromResult(new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme));
         }
 
         private string GetJwtToken(ClaimsIdentity identity)
