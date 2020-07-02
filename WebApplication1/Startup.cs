@@ -42,6 +42,7 @@ namespace WebApplication1
             services.AddSingleton(mapper);
 
             services.AddScoped<IPostServices, PostServices>();
+            services.AddScoped<IAuthServices, AuthServices>();
 
             services.AddDefaultIdentity<IdentityUser>(options =>
                 {

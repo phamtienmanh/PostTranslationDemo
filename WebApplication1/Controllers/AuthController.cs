@@ -1,18 +1,12 @@
 ﻿using System;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
-using AutoMapper;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using WebApplication1.DataAccess.Contexts;
 using WebApplication1.Infrastructure.Models;
+using WebApplication1.Infrastructure.Services;
 
 namespace WebApplication1.Controllers
 {
@@ -20,23 +14,18 @@ namespace WebApplication1.Controllers
     [Route("[controller]")]
     public class AuthController: ControllerBase
     {
-        private readonly IConfiguration _configuration;
-        private readonly AppDbContext _dbContext;
-        private readonly IMapper _mapper;
         private readonly UserManager<IdentityUser> _userManager;
-        private SignInManager<IdentityUser> _signInManager;
+        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly IAuthServices _authServices;
 
-        public AuthController(IConfiguration configuration,
-            AppDbContext dbContext,
-            IMapper mapper,
+        public AuthController(
             UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager)
+            SignInManager<IdentityUser> signInManager,
+            IAuthServices authServices)
         {
-            _configuration = configuration;
-            _dbContext = dbContext;
-            _mapper = mapper;
             _userManager = userManager;
             _signInManager = signInManager;
+            _authServices = authServices;
         }
 
         [HttpGet("google-login")]
@@ -59,10 +48,9 @@ namespace WebApplication1.Controllers
             if (result.Succeeded)
             {
                 var userEmail = info.Principal.FindFirst(ClaimTypes.Email).Value;
-                user = await _userManager.FindByEmailAsync(userEmail);
-                var claimsIdentity = await GetClaimsIdentityByUser(user);
-                var jwt = GetJwtToken(claimsIdentity);
-                return Ok(jwt);
+                user = await _authServices.GetUser(userEmail);
+                var authResponse = await _authServices.Authenticate(user, IpAddress());
+                return Ok(authResponse);
             }
 
             user = new IdentityUser
@@ -71,15 +59,14 @@ namespace WebApplication1.Controllers
                 UserName = info.Principal.FindFirst(ClaimTypes.Email).Value
             };
 
-            IdentityResult identResult = await _userManager.CreateAsync(user);
+            var identResult = await _userManager.CreateAsync(user);
             if (identResult.Succeeded)
             {
                 identResult = await _userManager.AddLoginAsync(user, info);
                 if (identResult.Succeeded)
                 {
-                    var claimsIdentity = await GetClaimsIdentityByUser(user);
-                    var jwt = GetJwtToken(claimsIdentity);
-                    return Ok(jwt);
+                    var authResponse = await _authServices.Authenticate(user, IpAddress());
+                    return Ok(authResponse);
                 }
             }
             return Unauthorized();
@@ -93,9 +80,7 @@ namespace WebApplication1.Controllers
                 return BadRequest(ModelState);
             }
 
-            var userIdentity = _mapper.Map<IdentityUser>(model);
-
-            var result = await _userManager.CreateAsync(userIdentity, model.Password);
+            var result = await _authServices.Registration(model);
 
             if (!result.Succeeded && result.Errors.Any())
             {
@@ -107,9 +92,7 @@ namespace WebApplication1.Controllers
                 return BadRequest(ModelState);
             }
 
-            return CreatedAtRoute("GetById",
-                new { id = userIdentity.Id },
-                userIdentity);
+            return Ok();
         }
 
         [HttpPost("login")]
@@ -120,61 +103,62 @@ namespace WebApplication1.Controllers
                 return BadRequest(ModelState);
             }
 
-            var identity = await GetClaimsIdentity(model.UserName, model.Password);
-            if (identity == null)
+            var user = await _authServices.GetUser(model.UserName, model.Password);
+            var authResponse = await _authServices.Authenticate(user, IpAddress());
+            if (authResponse == null)
             {
                 ModelState.AddModelError("login_failure", "Invalid username or password.");
                 return BadRequest(ModelState);
             }
-
-            var jwt = GetJwtToken(identity);
-            return Ok(jwt);
+            return Ok(authResponse);
         }
 
-        private async Task<ClaimsIdentity> GetClaimsIdentity(string userName, string password)
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RevokeTokenModel model)
         {
-            if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
-                return await Task.FromResult<ClaimsIdentity>(null);
+            var refreshToken = model.Token ?? Request.Cookies["refreshToken"];
+            var response = await _authServices.RefreshToken(refreshToken, IpAddress());
 
-            var userToVerify = await _userManager.FindByNameAsync(userName);
+            if (response == null)
+                return Unauthorized(new { message = "Invalid token" });
 
-            if (userToVerify == null)
+            SetTokenCookie(response.RefreshToken);
+
+            return Ok(response);
+        }
+
+        [HttpPost("revoke-token")]
+        public IActionResult RevokeToken([FromBody] RevokeTokenModel model)
+        {
+            // accept token from request body or cookie
+            var token = model.Token ?? Request.Cookies["refreshToken"];
+
+            if (string.IsNullOrEmpty(token))
+                return BadRequest(new { message = "Token is required" });
+
+            var response = _authServices.RevokeToken(token, IpAddress());
+
+            if (!response)
+                return NotFound(new { message = "Token not found" });
+
+            return Ok(new { message = "Token revoked" });
+        }
+
+        private void SetTokenCookie(string token)
+        {
+            var cookieOptions = new CookieOptions
             {
-                userToVerify = await _userManager.FindByEmailAsync(userName);
-                if (userToVerify == null)
-                {
-                    return await Task.FromResult<ClaimsIdentity>(null);
-                }
-            }
-            // check the credentials
-            if (await _userManager.CheckPasswordAsync(userToVerify, password))
-            {
-                return await GetClaimsIdentityByUser(userToVerify);
-            }
-            // Credentials are invalid, or account doesn't exist
-            return await Task.FromResult<ClaimsIdentity>(null);
+                HttpOnly = true,
+                Expires = DateTime.UtcNow.AddDays(7)
+            };
+            Response.Cookies.Append("refreshToken", token, cookieOptions);
         }
 
-        private async Task<ClaimsIdentity> GetClaimsIdentityByUser(IdentityUser user)
+        private string IpAddress()
         {
-            var claims = await _userManager.GetClaimsAsync(user);
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
-            claims.Add(new Claim(ClaimTypes.Name, user.UserName));
-            return await Task.FromResult(new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme));
-        }
-
-        private string GetJwtToken(ClaimsIdentity identity)
-        {
-            var creds = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"])),
-                SecurityAlgorithms.HmacSha256);
-            var jwtSecurityToken = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Issuer"],
-                notBefore: DateTime.UtcNow,
-                claims: identity.Claims,
-                expires: DateTime.UtcNow.Add(TimeSpan.FromDays(1)),
-                signingCredentials: creds);
-            return new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
+            if (Request.Headers.ContainsKey("X-Forwarded-For"))
+                return Request.Headers["X-Forwarded-For"];
+            return HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString();
         }
     }
 }

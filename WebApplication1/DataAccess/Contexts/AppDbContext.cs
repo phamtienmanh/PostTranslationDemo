@@ -14,5 +14,6 @@ namespace WebApplication1.DataAccess.Contexts
         public DbSet<Post> Posts { get; set; }
         public DbSet<PostTranslation> PostTranslations { get; set; }
         public DbSet<PostMeta> PostMetas { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }
