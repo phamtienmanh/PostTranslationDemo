@@ -52,8 +52,8 @@ namespace WebApplication1.Infrastructure.Services
         public async Task<IdentityUser> GetUser(string userName, string password = null)
         {
             var user = await _userManager.FindByNameAsync(userName);
-            if (user != null) return user;
-            user = await _userManager.FindByEmailAsync(userName);
+            if (user == null)
+                user = await _userManager.FindByEmailAsync(userName);
             // check the credentials
             if (password != null && !await _userManager.CheckPasswordAsync(user, password)) return null;
             return user;

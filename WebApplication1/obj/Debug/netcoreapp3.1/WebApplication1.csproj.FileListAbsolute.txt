@@ -147,3 +147,7 @@ C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\obj\Debug\netcoreapp
 C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\obj\Debug\netcoreapp3.1\WebApplication1.dll
 C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\obj\Debug\netcoreapp3.1\WebApplication1.pdb
 C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\obj\Debug\netcoreapp3.1\WebApplication1.csprojAssemblyReference.cache
+C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\bin\Debug\netcoreapp3.1\react-app\package-lock.json
+C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\bin\Debug\netcoreapp3.1\react-app\package.json
+C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\bin\Debug\netcoreapp3.1\react-app\public\manifest.json
+C:\Users\HELLO\source\repos\WebApplication1\WebApplication1\bin\Debug\netcoreapp3.1\react-app\tsconfig.json

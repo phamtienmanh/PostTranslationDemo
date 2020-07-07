@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using WebApplication1.DataAccess.Contexts;
 using WebApplication1.Infrastructure;
 using WebApplication1.Infrastructure.Services;
@@ -80,6 +81,16 @@ namespace WebApplication1
                     options.ClientId = googleAuthNSection["ClientId"];
                     options.ClientSecret = googleAuthNSection["ClientSecret"];
                 });
+
+            services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(
+                    builder =>
+                    {
+                        builder.WithOrigins("http://localhost:3000")
+                            .AllowAnyHeader();
+                    });
+            });
             services.AddControllers().AddNewtonsoftJson();
         }
 
@@ -94,7 +105,7 @@ namespace WebApplication1
             //app.UseHttpsRedirection();
 
             app.UseRouting();
-
+            app.UseCors();
             app.UseAuthentication();
             app.UseAuthorization();
 

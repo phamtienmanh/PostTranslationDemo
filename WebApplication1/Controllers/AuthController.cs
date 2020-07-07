@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using WebApplication1.Infrastructure.Extensions;
 using WebApplication1.Infrastructure.Models;
 using WebApplication1.Infrastructure.Services;
 
@@ -77,7 +78,7 @@ namespace WebApplication1.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(ModelState.ToDictionary());
             }
 
             var result = await _authServices.Registration(model);
@@ -89,7 +90,7 @@ namespace WebApplication1.Controllers
                     ModelState.AddModelError(err.Code, err.Description);
                 }
 
-                return BadRequest(ModelState);
+                return BadRequest(ModelState.ToDictionary());
             }
 
             return Ok();
@@ -100,15 +101,20 @@ namespace WebApplication1.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(ModelState.ToDictionary());
             }
 
             var user = await _authServices.GetUser(model.UserName, model.Password);
+            if (user == null)
+            {
+                ModelState.AddModelError("login_failure", "Invalid username or password.");
+                return BadRequest(ModelState.ToDictionary());
+            }
             var authResponse = await _authServices.Authenticate(user, IpAddress());
             if (authResponse == null)
             {
                 ModelState.AddModelError("login_failure", "Invalid username or password.");
-                return BadRequest(ModelState);
+                return BadRequest(ModelState.ToDictionary());
             }
             return Ok(authResponse);
         }
